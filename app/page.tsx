@@ -1,65 +1,160 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+
+type Todo = {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+};
 
 export default function Home() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [input, setInput] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  async function fetchTodos() {
+    const res = await fetch("/api/todos");
+    setTodos(await res.json());
+  }
+
+  async function addTodo() {
+    if (!input.trim()) return;
+    await fetch("/api/todos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: input.trim() }),
+    });
+    setInput("");
+    fetchTodos();
+  }
+
+  async function toggleTodo(todo: Todo) {
+    await fetch(`/api/todos/${todo.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completed: !todo.completed }),
+    });
+    fetchTodos();
+  }
+
+  async function saveEdit(id: string) {
+    if (!editingTitle.trim()) return;
+    await fetch(`/api/todos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editingTitle.trim() }),
+    });
+    setEditingId(null);
+    fetchTodos();
+  }
+
+  async function deleteTodo(id: string) {
+    await fetch(`/api/todos/${id}`, { method: "DELETE" });
+    fetchTodos();
+  }
+
+  const remaining = todos.filter((t) => !t.completed).length;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-gray-50 flex items-start justify-center pt-16 px-4">
+      <div className="w-full max-w-md">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Todo App</h1>
+
+        {/* Input */}
+        <div className="flex gap-2 mb-6">
+          <input
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="新しいタスクを入力..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTodo()}
+          />
+          <button
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            onClick={addTodo}
+          >
+            追加
+          </button>
+        </div>
+
+        {/* Stats */}
+        {todos.length > 0 && (
+          <p className="text-xs text-gray-500 mb-3">
+            残り {remaining} / {todos.length} タスク
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        )}
+
+        {/* List */}
+        <ul className="space-y-2">
+          {todos.map((todo) => (
+            <li
+              key={todo.id}
+              className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex items-center gap-3 shadow-sm"
+            >
+              <input
+                type="checkbox"
+                checked={todo.completed}
+                onChange={() => toggleTodo(todo)}
+                className="w-4 h-4 accent-blue-500 cursor-pointer"
+              />
+
+              {editingId === todo.id ? (
+                <input
+                  className="flex-1 border-b border-blue-400 text-sm focus:outline-none"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit(todo.id);
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className={`flex-1 text-sm cursor-pointer ${
+                    todo.completed ? "line-through text-gray-400" : "text-gray-700"
+                  }`}
+                  onDoubleClick={() => {
+                    setEditingId(todo.id);
+                    setEditingTitle(todo.title);
+                  }}
+                >
+                  {todo.title}
+                </span>
+              )}
+
+              {editingId === todo.id ? (
+                <button
+                  className="text-xs text-blue-500 hover:text-blue-700"
+                  onClick={() => saveEdit(todo.id)}
+                >
+                  保存
+                </button>
+              ) : (
+                <button
+                  className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                  onClick={() => deleteTodo(todo.id)}
+                >
+                  削除
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        {todos.length === 0 && (
+          <p className="text-center text-gray-400 text-sm mt-12">
+            タスクがありません。上から追加してください。
+          </p>
+        )}
+      </div>
+    </main>
   );
 }

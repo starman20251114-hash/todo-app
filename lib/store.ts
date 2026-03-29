@@ -8,7 +8,7 @@ export type Todo = {
   createdAt: string;
 };
 
-const DB_PATH = path.join(process.cwd(), "data", "todos.json");
+const DB_PATH = process.env.TODO_DB_PATH ?? path.join(process.cwd(), "data", "todos.json");
 
 function ensureFile() {
   const dir = path.dirname(DB_PATH);
